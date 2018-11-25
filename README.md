@@ -1,13 +1,15 @@
 # unitn_cv_2018_project
 Hasty implementation of a top view people tracker for the computer vision course in unitn.
-####Stuff in this reporistory:
+
+#### Stuff in this reporistory:
 - input video, video.mp4
 - ouput video, result.mp4
 - ground truth files 
 - estimated trajectories of selected pedestrians
 - code (main.py,  feature_swarm.py, util.py)
 - report on this project
-####Requirements:
+
+#### Requirements:
 - numpy
 - opencv
 - the Rtree python package
