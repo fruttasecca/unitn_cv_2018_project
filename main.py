@@ -104,8 +104,8 @@ while has_new_frame:
             else:
                 feature_points = a
 
-            feature_swarm = FeatureSwarm(feature_points, boxes, max_crowdness=40,
-                                         growth_thres=10, dist_thres=120, identity_age=50)
+            feature_swarm = FeatureSwarm(feature_points, boxes, max_points_per_box=40,
+                                         infer_thres=10, max_lost_dist=120, max_lost_id_age=50)
         else:
             # find the features points in the next frame
             predicted_points, flags, err = cv2.calcOpticalFlowPyrLK(old_hue, hue, feature_points[:, :, :2], None,

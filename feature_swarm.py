@@ -10,31 +10,31 @@ from util import box_contains_point, resolve_candidates
 
 
 class FeatureSwarm():
-    def __init__(self, points, boxes, max_crowdness=20, growth_thres=5, dist_thres=10,
-                 identity_age=40, max_point_age=80):
+    def __init__(self, points, boxes, max_points_per_box=20, infer_thres=5, max_lost_dist=10,
+                 max_lost_id_age=40, max_point_age=80):
 
         # number of processed frames
-        self.identity_age = identity_age
+        self.max_lost_id_age = max_lost_id_age
         # number of identities seen, used to create an id for a new identity
         self.identities_counter = 0
         # max number of feature points that should be in a single bounding box
-        self.max_crowdness = max_crowdness
+        self.max_points_per_box = max_points_per_box
         # max age of a feature point, points older that this are discarded
         self.max_point_age = max_point_age
 
         """
         A box will be assigned an identity i if the majority of points in that box
-        have decided have identity i and are >= self.growth_thres.
+        have decided have identity i and are >= self.infer_thres.
         A new box will be created if there is a cluster of points with the same identity but
         that do not have a box containing them.
         """
-        self.growth_thres = growth_thres
+        self.infer_thres = infer_thres
 
         """
         Maximum distance threshold to associate a lost identity (which was lost in a certain position
         x,y) to a box without identity.
         """
-        self.dist_thres = dist_thres
+        self.max_lost_dist = max_lost_dist
 
         """
         Maximum age than a lost identity can have, identities that have been lost for too long are
@@ -162,7 +162,7 @@ class FeatureSwarm():
         assigned_boxes = self.assign_decided_points_to_boxes(starting_boxes)
 
         # grow more boxes based on clusters of points with the same identity (when there is no box with such identity)
-        self.grow_boxes(assigned_boxes)
+        self.infer_boxes(assigned_boxes)
 
         # points with no identiy now have the same identity of the box they are contained into
         self.assign_undecided_points_to_boxes(assigned_boxes)
@@ -174,7 +174,7 @@ class FeatureSwarm():
         Identities that are contended by multiple boxes are resolved,
         boxes without identities have an identity assigned to them.
         """
-        boxes_ided = self.decide_on_identities(assigned_boxes)
+        boxes_ided = self.decide_contended_identities(assigned_boxes)
 
         # keep track of history
         for box in boxes_ided:
@@ -196,7 +196,7 @@ class FeatureSwarm():
         self.points = self.points[self.points[:, 0, 3] < self.max_point_age]
         return boxes_ided
 
-    def decide_on_identities(self, boxes):
+    def decide_contended_identities(self, boxes):
         """
         Identities that are contended by multiple boxes are resolved,
         boxes without identities have an identity assigned to them.
@@ -235,7 +235,7 @@ class FeatureSwarm():
             diff = self.seen_frames - last_time_seen
 
             # not seen this frame & not considered exited & not too old
-            if identity not in id_to_boxes and identity not in self.exited and diff < self.identity_age:
+            if identity not in id_to_boxes and identity not in self.exited and diff < self.max_lost_id_age:
                 self.lost_identities[identity] = (history[-1])
 
         """
@@ -268,7 +268,7 @@ class FeatureSwarm():
             x, y, w, h, points, id = box
             # if it contains at least a point
             if len(points) >= 1:
-                id = self.search_lost_identity((x, y, w, h))
+                id = self.find_lost_identity((x, y, w, h))
                 result.append((x, y, w, h, id))
                 # set the identity of all points in this box
                 for i in points:
@@ -276,7 +276,7 @@ class FeatureSwarm():
 
         return result
 
-    def search_lost_identity(self, box):
+    def find_lost_identity(self, box):
         """
         Search for a lost identity that can be matched to the box, based
         on distance and for how long the identity has been lost, if there
@@ -293,14 +293,14 @@ class FeatureSwarm():
         bcy = y + h / 2
 
         # to do that look for the nearest lost identity within the threshold
-        mindist = self.dist_thres
+        mindist = self.max_lost_dist
         minid = None
         for id, stats in self.lost_identities.items():
             cx, cy, last_seen = stats
-            if (self.seen_frames - last_seen) < self.identity_age:
+            if (self.seen_frames - last_seen) < self.max_lost_id_age:
                 dist = math.sqrt((bcx - cx) ** 2 + (bcy - cy) ** 2)
                 # if near enough and not too old
-                if dist < mindist and (self.seen_frames - self.history[id][-1][-1]) < self.identity_age:
+                if dist < mindist and (self.seen_frames - self.history[id][-1][-1]) < self.max_lost_id_age:
                     mindist = dist
                     minid = id
 
@@ -473,7 +473,7 @@ class FeatureSwarm():
             assigned_boxes.append([x, y, w, h, tmp, int(id)])
         return assigned_boxes
 
-    def grow_boxes(self, boxes):
+    def infer_boxes(self, boxes):
         """
         If there is a cluster of points with the same identity
         and there is no box already having that identity, "grow"
@@ -493,7 +493,7 @@ class FeatureSwarm():
                 points_indices = np.where(self.points[:, 0, 2] == id)
                 points = self.points[points_indices, 0, :2][0]
                 decided = list(points_indices[0])
-                if len(points) >= self.growth_thres:
+                if len(points) >= self.infer_thres:
                     x, y, w, h = cv2.boundingRect(points)
                     # accept only boxes of certain size
                     if w < 120 and h < 120:
@@ -508,6 +508,6 @@ class FeatureSwarm():
         for box in boxes:
             points = box[4]
             points = list(reversed(points))
-            self.points[points[self.max_crowdness:], 0, 3] = self.max_point_age
-            del points[self.max_crowdness:]
+            self.points[points[self.max_points_per_box:], 0, 3] = self.max_point_age
+            del points[self.max_points_per_box:]
             box[4] = points

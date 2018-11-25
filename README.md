@@ -1,13 +1,12 @@
 # unitn_cv_2018_project
 Hasty implementation of a top view people tracker for the computer vision course in unitn.
-
 ####Stuff in this reporistory:
 - input video, video.mp4
 - ouput video, result.mp4
-- groung truth files 
+- ground truth files 
+- estimated trajectories of selected pedestrians
 - code (main.py,  feature_swarm.py, util.py)
 - report on this project
-
 ####Requirements:
 - numpy
 - opencv
@@ -21,3 +20,6 @@ __To run the project just run main.py with python3, no arguments needed__;
 it will output a file named output.mp4.
 
 This is not a long term project or anything, do not expect tests or whatever.
+
+Note that the names of some parameters or functions might not always be the same
+in both the pseudocode (report) and the code.
